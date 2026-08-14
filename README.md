@@ -13,16 +13,18 @@ Installing it takes about two minutes:
 1. Download or clone this repo.
 2. Open `chrome://extensions` and turn on **Developer mode** (top right).
 3. Click **Load unpacked** and select the `extension/` folder.
-4. Open any Luma or Partiful event, open the guest list, and scroll it all the way down so everything loads.
-5. Click the extension icon, hit **extract**, then copy or download the list.
+4. Open any Luma or Partiful event and open the guest list.
+5. Click the extension icon and hit **scroll + grab everyone**. It scrolls the whole list for you, then copy or download the result.
 
-It grabs X (twitter), Instagram, and LinkedIn profiles, and filters out the noise like nav links, post URLs, and share buttons. Nothing ever leaves your browser. No servers, no analytics, just about 150 lines of JavaScript you can read in one sitting.
+You don't have to scroll the list yourself. The extension drives it to the bottom until everything's loaded, then pulls out every X (twitter), Instagram, and LinkedIn profile and filters out the noise like nav links, post URLs, and share buttons. Nothing ever leaves your browser. No servers, no analytics, just about 150 lines of JavaScript you can read in one sitting.
 
 ### How it handles each platform
 
 The two sites store guest socials very differently, so the extension does something different for each.
 
 On **Luma**, every guest's linked accounts sit right in the page as plain links, so the extension just reads them straight out of the DOM.
+
+It figures out what to scroll by anchoring on the guest-search box rather than hardcoding class names, since both sites use auto-generated class names that change on every deploy.
 
 On **Partiful** it's trickier. Their guest list shows little X and Instagram icons, but the actual links never make it into the HTML. They only exist in the JSON the app fetches in the background. So the extension quietly watches those network responses as the page loads and pulls the handles out of the JSON. Open the guest list *after* the page has loaded, and if you somehow get zero results, refresh the page and reopen the list.
 

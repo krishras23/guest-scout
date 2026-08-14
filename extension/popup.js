@@ -1,9 +1,9 @@
 const $ = (id) => document.getElementById(id);
 
 const HINTS = {
-  luma: "tip: click the guest count to open the full list and scroll it to the bottom so everything loads, then extract.",
-  partiful: "tip: partiful only loads socials over the network — open the guest list (and scroll it) AFTER the page loads, then extract. if you get 0, refresh and reopen the list.",
-  auto: "",
+  luma: "on luma, open the guest list first, then hit scroll + grab.",
+  partiful: "on partiful, let the page finish loading, open the guest list, then hit scroll + grab. if you get 0, refresh and try again.",
+  auto: "keep this popup open while it scrolls.",
 };
 
 function setHint(host, platform) {
@@ -12,16 +12,20 @@ function setHint(host, platform) {
     if (host && host.includes("partiful")) p = "partiful";
     else if (host && host.includes("lu.ma")) p = "luma";
   }
-  $("hint").textContent = HINTS[p] || "";
+  $("hint").textContent = HINTS[p] || HINTS.auto;
 }
 
 $("platform").addEventListener("change", () => setHint(null, $("platform").value));
 
-$("go").addEventListener("click", async () => {
-  $("count").textContent = "extracting…";
+async function run(type, label) {
+  $("go").disabled = true;
+  $("grab").disabled = true;
+  $("count").textContent = type === "scroll_extract"
+    ? "scrolling the list… hang tight"
+    : "grabbing…";
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    const res = await chrome.tabs.sendMessage(tab.id, { type: "extract" });
+    const res = await chrome.tabs.sendMessage(tab.id, { type });
     const urls = (res && res.urls) || [];
     $("out").value = urls.join("\n");
     $("count").textContent = urls.length
@@ -29,16 +33,22 @@ $("go").addEventListener("click", async () => {
       : "0 found — see tip below";
     setHint(res && res.host, $("platform").value);
   } catch (e) {
-    $("count").textContent = "";
     $("out").value = "";
+    $("count").textContent = "";
     $("hint").textContent =
-      "couldn't reach the page — make sure you're on a lu.ma or partiful event tab, then refresh it once and try again.";
+      "couldn't reach the page. make sure you're on a lu.ma or partiful event tab, refresh it once, and try again.";
+  } finally {
+    $("go").disabled = false;
+    $("grab").disabled = false;
   }
-});
+}
+
+$("go").addEventListener("click", () => run("scroll_extract"));
+$("grab").addEventListener("click", () => run("extract"));
 
 $("copy").addEventListener("click", () => {
   navigator.clipboard.writeText($("out").value);
-  $("count").textContent = "copied ✓";
+  $("count").textContent = "copied";
 });
 
 $("dl").addEventListener("click", () => {

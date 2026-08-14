@@ -1,6 +1,10 @@
 // collects social profile urls on lu.ma and partiful.
 // luma: everything's just sitting in the DOM as <a href>.
-// partiful: interceptor.js tees us the JSON the page fetches.
+// partiful: interceptor.js tees us the JSON the page fetches as we scroll.
+//
+// the main trick here is auto-scroll: both sites lazy-load the guest list,
+// so we programmatically drive the list to the bottom until it stops growing,
+// THEN extract. no manual scrolling, no pasting HTML.
 
 const found = new Map(); // key: normalized url -> display url
 
@@ -64,16 +68,98 @@ window.addEventListener("message", (e) => {
   if (e.source === window && e.data && e.data.__guest_scout) harvest(e.data.payload);
 });
 
+// ---- finding the thing to scroll -------------------------------------------
+//
+// note on class names: both sites ship auto-generated, hashed class names
+// (partiful's `ptf-l-66Z4C`, luma's equivalents) that change on every deploy,
+// so hardcoding them would quietly break the extension after the next release.
+// instead we anchor on the guest-search box, which is a stable, human-facing
+// element on both platforms, and walk up to its scrollable parent. if that
+// misses, we fall back to scrolling every scrollable container on the page.
+
+function isScrollable(el) {
+  if (!el || el === document.body || el === document.documentElement) return false;
+  const s = getComputedStyle(el);
+  return (s.overflowY === "auto" || s.overflowY === "scroll") &&
+    el.scrollHeight > el.clientHeight + 40;
+}
+
+function findGuestScroller() {
+  const input =
+    document.querySelector('input[placeholder*="guest" i]') ||
+    document.querySelector('input[type="search"]');
+  let el = input;
+  while (el && el !== document.body) {
+    if (isScrollable(el)) return el;
+    el = el.parentElement;
+  }
+  return null;
+}
+
+function allScrollers() {
+  const out = [];
+  document.querySelectorAll("div, ul, section, main").forEach((el) => {
+    if (isScrollable(el)) out.push(el);
+  });
+  return out;
+}
+
+// how many guest-ish things are currently on the page (our progress signal)
+function itemCount() {
+  return document.querySelectorAll(
+    'a[href*="x.com"], a[href*="twitter.com"], a[href*="instagram.com"], img[alt]'
+  ).length;
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function autoScroll(onTick) {
+  const primary = findGuestScroller();
+  let lastCount = -1;
+  let stable = 0;
+
+  // scroll until the list stops growing for a few rounds, or we hit the cap
+  for (let i = 0; i < 300 && stable < 5; i++) {
+    const targets = primary ? [primary, ...allScrollers()] : allScrollers();
+    if (targets.length === 0) {
+      window.scrollTo(0, document.documentElement.scrollHeight);
+    } else {
+      for (const t of targets) t.scrollTop = t.scrollHeight;
+    }
+    await sleep(350);
+    harvest(document.documentElement.outerHTML); // catch DOM links as we go
+
+    const c = itemCount();
+    if (typeof onTick === "function") onTick(found.size, c);
+    if (c === lastCount) stable++;
+    else { stable = 0; lastCount = c; }
+  }
+
+  // nudge back to top so the user's view isn't left stranded at the bottom
+  if (primary) primary.scrollTop = 0;
+}
+
 function scanDom() {
   document.querySelectorAll("a[href]").forEach((a) => harvestUrlOnly(a.href));
-  // luma sometimes tucks links in odd attrs; cheap catch-all:
   harvest(document.documentElement.outerHTML);
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg && msg.type === "extract") {
+    // grab whatever's loaded right now, no scrolling
     scanDom();
     sendResponse({ urls: Array.from(found.values()).sort(), host: location.hostname });
+    return true;
   }
+
+  if (msg && msg.type === "scroll_extract") {
+    // auto-scroll the whole list, then hand back everything
+    autoScroll().then(() => {
+      scanDom();
+      sendResponse({ urls: Array.from(found.values()).sort(), host: location.hostname });
+    });
+    return true; // keep the channel open for the async reply
+  }
+
   return true;
 });
