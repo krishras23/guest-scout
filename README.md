@@ -1,38 +1,56 @@
-# luma-x-scout
+# guest-scout
 
-Pull every X (twitter) profile out of a [Luma](https://lu.ma) event guest list, so you can scope out who's actually going to be there before you show up.
+Pull everyone's socials off a [Luma](https://lu.ma) or [Partiful](https://partiful.com) guest list, so you can see who's actually going to be in the room before you show up.
 
-No API keys, no scraping infra, no dependencies. Just python and the HTML you already have in your browser.
+No API keys, no scraping infra, no accounts. It's just a bit of JavaScript in your browser (plus a tiny Python script if you'd rather work from a saved HTML file).
 
-## How it works
+## Chrome extension (recommended)
 
-Luma renders the guest list client-side and each guest's linked socials are right there in the DOM. This just regexes out every `x.com` / `twitter.com` profile link, drops the junk (nav links, share buttons), dedupes, and hands you a clean list.
+The extension lives in [`extension/`](extension/) and works on both Luma and Partiful. There's a platform dropdown in the popup, though auto-detect handles it for you.
 
-## Usage
+Installing it takes about two minutes:
 
-1. Open the event page on lu.ma and click the guest count to open the guest list modal
-2. **Scroll the modal all the way to the bottom** — the list lazy-loads, so if you don't scroll, you only get the first chunk
-3. Right click → Inspect → right click the modal's element → Copy → Copy outerHTML, and paste it into a file (or just save the whole page, that works too)
+1. Download or clone this repo.
+2. Open `chrome://extensions` and turn on **Developer mode** (top right).
+3. Click **Load unpacked** and select the `extension/` folder.
+4. Open any Luma or Partiful event, open the guest list, and scroll it all the way down so everything loads.
+5. Click the extension icon, hit **extract**, then copy or download the list.
 
-Then:
+It grabs X (twitter), Instagram, and LinkedIn profiles, and filters out the noise like nav links, post URLs, and share buttons. Nothing ever leaves your browser. No servers, no analytics, just about 150 lines of JavaScript you can read in one sitting.
+
+### How it handles each platform
+
+The two sites store guest socials very differently, so the extension does something different for each.
+
+On **Luma**, every guest's linked accounts sit right in the page as plain links, so the extension just reads them straight out of the DOM.
+
+On **Partiful** it's trickier. Their guest list shows little X and Instagram icons, but the actual links never make it into the HTML. They only exist in the JSON the app fetches in the background. So the extension quietly watches those network responses as the page loads and pulls the handles out of the JSON. Open the guest list *after* the page has loaded, and if you somehow get zero results, refresh the page and reopen the list.
+
+## Python script
+
+If you already saved a Luma guest list as HTML (or just want something you can pipe around in a terminal), `scout.py` does the same extraction from a file. This one is Luma-only, since Partiful's links aren't in the HTML to begin with.
+
+Grab the HTML first: open the event on Luma, click the guest count to open the list, scroll it to the bottom so it all loads, then right click, Inspect, right click the list element, and choose Copy outerHTML. Paste that into a file (saving the whole page works too).
+
+Then run it:
 
 ```bash
 python scout.py guests.html
 ```
 
-Write to a file:
+Write the results to a file:
 
 ```bash
 python scout.py guests.html -o handles.txt
 ```
 
-Want @handles instead of URLs:
+Get bare `@handles` instead of full URLs:
 
 ```bash
 python scout.py guests.html --handles
 ```
 
-On a mac you can even skip the file and pipe straight from your clipboard:
+On a Mac you can skip the file entirely and pipe straight from your clipboard:
 
 ```bash
 pbpaste | python scout.py -
@@ -48,33 +66,14 @@ https://x.com/aahishabbani
 305 profiles total
 ```
 
-## Notes
+It only needs Python 3.8+ and the standard library.
 
-- Works on any page really, not just Luma — it's just looking for profile links
-- Only finds guests who actually linked their X account (in my experience that's ~20-25% of a tech event guest list)
-- Requires python 3.8+, stdlib only
+## A couple of notes
+
+Only guests who actually linked an account will show up. In my experience that's roughly a quarter of a typical tech event guest list, so don't expect a full roster.
 
 ## Why
 
-Went to an SF AI event with 1,300+ guests and wanted to know who to look out for. Ctrl+F'ing through the guest list was not it.
+I went to an SF AI event with 1,300+ people and wanted to know who to look out for beforehand. Scrolling the guest list and Ctrl+F'ing names was not it.
 
-MIT licensed, do whatever.
-
-## Chrome extension
-
-Partiful broke the copy-paste approach — their guest list HTML has the little X/IG icons but **never contains the actual links** (they only exist in the JSON the app fetches). So there's now a proper extension in [`extension/`](extension/) that works on **both Luma and Partiful**, with a platform dropdown (auto-detect works fine too).
-
-**Install (2 min):**
-
-1. Download/clone this repo
-2. Go to `chrome://extensions`, flip on **Developer mode** (top right)
-3. **Load unpacked** → select the `extension/` folder
-4. Open any lu.ma or partiful event, open the guest list, scroll it to the bottom
-5. Click the extension → **extract** → copy or download the list
-
-**How it handles each platform:**
-
-- **Luma** — links are right in the DOM, extension just reads them
-- **Partiful** — extension quietly listens to the network responses the page itself loads (that's where the socials live) and pulls handles out of the JSON. Open the guest list *after* the page loads; if you get 0, refresh and reopen the list.
-
-Grabs X/twitter, Instagram, and LinkedIn profiles. Filters out nav junk, post links, share intents, etc. Nothing leaves your browser — no servers, no analytics, it's 150 lines of js you can read in one sitting.
+MIT licensed, do whatever you want with it.
