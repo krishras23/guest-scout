@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
-*.html
-*.txt
-!requirements.txt
+
+# guest-list HTML/txt dumps dropped at the repo root, but keep the extension's own files
+/*.html
+/*.txt

@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  body { font: 13px/1.4 -apple-system, system-ui, sans-serif; width: 340px; margin: 0; padding: 12px; background: #111; color: #eee; }
+  h1 { font-size: 14px; margin: 0 0 8px; }
+  .row { display: flex; gap: 8px; margin-bottom: 8px; }
+  select, button { font: inherit; border-radius: 6px; border: 1px solid #333; background: #1c1c1c; color: #eee; padding: 6px 10px; }
+  button { cursor: pointer; }
+  button:hover { background: #2a2a2a; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  #go { background: #3b82f6; border-color: #3b82f6; color: #fff; flex: 1; }
+  #go:hover:not(:disabled) { background: #2f6fd6; }
+  #grab { flex: 0 0 auto; }
+  textarea { width: 100%; height: 210px; box-sizing: border-box; background: #0a0a0a; color: #9fe29f; border: 1px solid #333; border-radius: 6px; font: 11px/1.5 ui-monospace, monospace; padding: 8px; resize: vertical; }
+  #count { color: #888; margin: 6px 0; min-height: 16px; }
+  .hint { color: #777; font-size: 11px; margin-top: 6px; }
+</style>
+</head>
+<body>
+  <h1>guest-scout</h1>
+  <div class="row">
+    <select id="platform">
+      <option value="auto">auto-detect</option>
+      <option value="luma">luma</option>
+      <option value="partiful">partiful</option>
+    </select>
+    <button id="go">scroll + grab everyone</button>
+  </div>
+  <div class="row">
+    <button id="grab">just grab what's loaded</button>
+  </div>
+  <div id="count"></div>
+  <textarea id="out" spellcheck="false" placeholder="open an event's guest list, then hit scroll + grab. it'll load the whole list for you."></textarea>
+  <div class="row" style="margin-top:8px">
+    <button id="copy">copy</button>
+    <button id="dl">download .txt</button>
+  </div>
+  <div class="hint" id="hint">keep this popup open while it scrolls.</div>
+  <script src="popup.js"></script>
+</body>
+</html>
