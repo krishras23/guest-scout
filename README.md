@@ -59,3 +59,22 @@ https://x.com/aahishabbani
 Went to an SF AI event with 1,300+ guests and wanted to know who to look out for. Ctrl+F'ing through the guest list was not it.
 
 MIT licensed, do whatever.
+
+## Chrome extension
+
+Partiful broke the copy-paste approach — their guest list HTML has the little X/IG icons but **never contains the actual links** (they only exist in the JSON the app fetches). So there's now a proper extension in [`extension/`](extension/) that works on **both Luma and Partiful**, with a platform dropdown (auto-detect works fine too).
+
+**Install (2 min):**
+
+1. Download/clone this repo
+2. Go to `chrome://extensions`, flip on **Developer mode** (top right)
+3. **Load unpacked** → select the `extension/` folder
+4. Open any lu.ma or partiful event, open the guest list, scroll it to the bottom
+5. Click the extension → **extract** → copy or download the list
+
+**How it handles each platform:**
+
+- **Luma** — links are right in the DOM, extension just reads them
+- **Partiful** — extension quietly listens to the network responses the page itself loads (that's where the socials live) and pulls handles out of the JSON. Open the guest list *after* the page loads; if you get 0, refresh and reopen the list.
+
+Grabs X/twitter, Instagram, and LinkedIn profiles. Filters out nav junk, post links, share intents, etc. Nothing leaves your browser — no servers, no analytics, it's 150 lines of js you can read in one sitting.

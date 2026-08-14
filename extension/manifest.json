@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "guest-scout",
+  "version": "1.0.0",
+  "description": "pull everyone's socials off a luma or partiful guest list before you show up",
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "permissions": ["activeTab"],
+  "content_scripts": [
+    {
+      "matches": ["https://lu.ma/*", "https://*.lu.ma/*", "https://*.partiful.com/*", "https://partiful.com/*"],
+      "js": ["collector.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://*.partiful.com/*", "https://partiful.com/*"],
+      "js": ["interceptor.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ]
+}
