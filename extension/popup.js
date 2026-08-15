@@ -1,51 +1,40 @@
 const $ = (id) => document.getElementById(id);
 
-// figure out which platform the current tab is, from its URL. no dropdown,
-// no guessing on the user's part.
-function detectPlatform(url) {
-  if (!url) return null;
+// is the current tab a luma event? reads the URL, nothing for the user to pick.
+function isLuma(url) {
+  if (!url) return false;
   try {
     const h = new URL(url).hostname;
-    if (h === "luma.com" || h.endsWith(".luma.com") || h === "lu.ma" || h.endsWith(".lu.ma"))
-      return "luma";
-    if (h === "partiful.com" || h.endsWith(".partiful.com")) return "partiful";
-  } catch (e) {}
-  return null;
-}
-
-const HINTS = {
-  luma: "open the guest list, then hit scan. it loads the whole list for you.",
-  partiful: "let the page finish loading, open the guest list, then scan. if you get 0, refresh and try again.",
-};
-
-let currentPlatform = null;
-
-async function init() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  currentPlatform = detectPlatform(tab && tab.url);
-
-  const pill = $("pill");
-  if (currentPlatform) {
-    pill.classList.add("on");
-    $("pilltext").textContent = currentPlatform;
-    $("scan").disabled = false;
-    $("grab").disabled = false;
-    $("hint").textContent = HINTS[currentPlatform] || "";
-  } else {
-    pill.classList.remove("on");
-    $("pilltext").textContent = "not on an event page";
-    $("scan").disabled = true;
-    $("grab").disabled = true;
-    $("hint").textContent = "open a luma.com or partiful.com event, then reopen this.";
+    return h === "luma.com" || h.endsWith(".luma.com") || h === "lu.ma" || h.endsWith(".lu.ma");
+  } catch (e) {
+    return false;
   }
 }
 
-function setBusy(busy, text) {
-  $("scan").disabled = busy || !currentPlatform;
-  $("grab").disabled = busy || !currentPlatform;
-  $("status").innerHTML = busy
-    ? `<span class="spin"></span>${text || "working…"}`
-    : "";
+async function init() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const ok = isLuma(tab && tab.url);
+  const pill = $("pill");
+
+  if (ok) {
+    pill.classList.add("on");
+    $("pilltext").textContent = "luma";
+    $("scan").disabled = false;
+    $("grab").disabled = false;
+    $("hint").textContent = "open the guest list, then hit scan. it loads the whole list for you.";
+  } else {
+    pill.classList.remove("on");
+    $("pilltext").textContent = "not on a luma event";
+    $("scan").disabled = true;
+    $("grab").disabled = true;
+    $("hint").textContent = "open a luma.com event, then reopen this popup.";
+  }
+}
+
+function setBusy(busy, text, enabled) {
+  $("scan").disabled = busy || !enabled;
+  $("grab").disabled = busy || !enabled;
+  $("status").innerHTML = busy ? `<span class="spin"></span>${text || "working…"}` : "";
 }
 
 function showResults(urls) {
@@ -59,14 +48,14 @@ function showResults(urls) {
 }
 
 async function run(type, busyText) {
-  setBusy(true, busyText);
+  setBusy(true, busyText, true);
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const res = await chrome.tabs.sendMessage(tab.id, { type });
-    setBusy(false);
+    setBusy(false, "", true);
     showResults((res && res.urls) || []);
   } catch (e) {
-    setBusy(false);
+    setBusy(false, "", true);
     $("status").textContent = "";
     $("hint").textContent =
       "couldn't reach the page. refresh the event tab once, then reopen this popup.";

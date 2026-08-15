@@ -1,9 +1,6 @@
-// collects social profile urls on lu.ma / luma.com and partiful.
-// luma: everything's just sitting in the DOM as <a href>.
-// partiful: interceptor.js tees us the data the page fetches; we dig handles out.
-//
-// auto-scroll drives the guest list to the bottom until nothing new shows up,
-// so there's no manual scrolling and no pasting HTML.
+// collects social profile urls from a luma guest list.
+// luma puts every guest's linked accounts right in the page as <a href> links,
+// so we auto-scroll the list to load everyone, then read them out of the DOM.
 
 const found = new Map(); // key: normalized url -> display url
 
@@ -12,8 +9,8 @@ const JUNK = new Set([
   "share", "settings", "login", "signup", "signin", "tos", "privacy", "about",
   "jobs", "blog", "help", "legal", "embed", "hashtag", "accounts", "p", "reel",
   "reels", "stories", "tv", "directory", "web", "download", "features", "premium",
-  // the platforms' own accounts, so their footer links don't pose as guests
-  "partiful", "lu", "luma",
+  // luma's own account, so footer links don't pose as guests
+  "lu", "luma",
 ]);
 
 const URL_RE =
@@ -45,35 +42,13 @@ function harvest(text) {
   let m;
   URL_RE.lastIndex = 0;
   while ((m = URL_RE.exec(text)) !== null) addProfile(m[1].toLowerCase(), m[2]);
-
-  // bare handles in JSON fields like "twitter":"foo" / "instagramHandle":"bar" / "ig":"baz"
-  const fieldRe =
-    /"((?:twitter|x)(?:handle|username|user|url)?|instagram(?:handle|username|user|url)?|ig|ighandle)"\s*:\s*"(@?[A-Za-z0-9_.\-\/:]{1,80})"/gi;
-  while ((m = fieldRe.exec(text)) !== null) {
-    const key = m[1].toLowerCase();
-    const val = m[2];
-    if (val.includes("://")) { harvestUrlOnly(val); continue; }
-    if (key.startsWith("insta") || key === "ig" || key === "ighandle") addProfile("instagram.com", val);
-    else addProfile("x.com", val);
-  }
 }
-
-function harvestUrlOnly(text) {
-  let m;
-  URL_RE.lastIndex = 0;
-  while ((m = URL_RE.exec(text)) !== null) addProfile(m[1].toLowerCase(), m[2]);
-}
-
-// partiful: receive teed data from the main-world interceptor
-window.addEventListener("message", (e) => {
-  if (e.source === window && e.data && e.data.__guest_scout) harvest(e.data.payload);
-});
 
 // ---- finding the thing to scroll -------------------------------------------
 //
-// both sites ship auto-generated, hashed class names that change every deploy,
-// so we don't hardcode them. we anchor on the guest-search box and on any
-// scrollable element inside the guest modal, then fall back to the whole page.
+// luma ships auto-generated, hashed class names that change every deploy, so we
+// don't hardcode them. we anchor on the guest-search box and on any scrollable
+// element inside the guest modal, then fall back to the whole page.
 
 function isScrollable(el) {
   if (!el || el === document.body || el === document.documentElement) return false;
@@ -98,7 +73,6 @@ function findScrollers() {
   const set = new Set();
   const primary = findGuestScroller();
   if (primary) set.add(primary);
-  // prefer scrollables inside a modal/dialog (that's usually the guest list)
   const dialog = document.querySelector('[role="dialog"], [aria-modal="true"]');
   const scope = dialog || document;
   scope.querySelectorAll("div, ul, ol, section, main").forEach((el) => {
@@ -107,10 +81,8 @@ function findScrollers() {
   return [...set];
 }
 
-// progress signal: real profiles captured (weighted) plus visible rows.
-// weighting profiles means we keep scrolling while the interceptor is still
-// pulling in new people, even when the DOM row count stays flat (virtualized
-// lists recycle their rows, so counting avatars alone would stall early).
+// progress signal: profiles captured (weighted) plus visible guest rows, so we
+// keep scrolling while new people are still loading.
 function progressSignal() {
   const rows = document.querySelectorAll(
     'a[href*="x.com"], a[href*="twitter.com"], a[href*="instagram.com"], img[alt]'
@@ -121,13 +93,13 @@ function progressSignal() {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function autoScroll(onTick) {
-  await sleep(800); // let the modal open and its first batch render
+  await sleep(700); // let the guest list open and its first batch render
 
   let stable = 0;
   let last = -1;
-  const MAX_ROUNDS = 250;   // hard cap so it always terminates (~2.5 min worst case)
-  const WAIT = 600;         // per-round settle time
-  const NEED_STABLE = 10;   // ~6s of no new data before we call it done
+  const MAX_ROUNDS = 250;   // hard cap so it always terminates
+  const WAIT = 550;         // per-round settle time
+  const NEED_STABLE = 8;    // rounds of no new data before we call it done
 
   for (let i = 0; i < MAX_ROUNDS && stable < NEED_STABLE; i++) {
     const targets = findScrollers();
@@ -136,7 +108,6 @@ async function autoScroll(onTick) {
     } else {
       for (const t of targets) {
         t.scrollTop = t.scrollHeight;
-        // some virtualized lists only fetch more on a real wheel/scroll event
         try { t.dispatchEvent(new WheelEvent("wheel", { deltaY: 1500, bubbles: true })); } catch (e) {}
         try { t.dispatchEvent(new Event("scroll", { bubbles: true })); } catch (e) {}
       }
@@ -155,7 +126,7 @@ async function autoScroll(onTick) {
 }
 
 function scanDom() {
-  document.querySelectorAll("a[href]").forEach((a) => harvestUrlOnly(a.href));
+  document.querySelectorAll("a[href]").forEach((a) => harvest(a.href));
   harvest(document.documentElement.outerHTML);
 }
 
