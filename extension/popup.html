@@ -3,41 +3,81 @@
 <head>
 <meta charset="utf-8" />
 <style>
-  body { font: 13px/1.4 -apple-system, system-ui, sans-serif; width: 340px; margin: 0; padding: 12px; background: #111; color: #eee; }
-  h1 { font-size: 14px; margin: 0 0 8px; }
-  .row { display: flex; gap: 8px; margin-bottom: 8px; }
-  select, button { font: inherit; border-radius: 6px; border: 1px solid #333; background: #1c1c1c; color: #eee; padding: 6px 10px; }
-  button { cursor: pointer; }
-  button:hover { background: #2a2a2a; }
-  button:disabled { opacity: 0.5; cursor: default; }
-  #go { background: #3b82f6; border-color: #3b82f6; color: #fff; flex: 1; }
-  #go:hover:not(:disabled) { background: #2f6fd6; }
-  #grab { flex: 0 0 auto; }
-  textarea { width: 100%; height: 210px; box-sizing: border-box; background: #0a0a0a; color: #9fe29f; border: 1px solid #333; border-radius: 6px; font: 11px/1.5 ui-monospace, monospace; padding: 8px; resize: vertical; }
-  #count { color: #888; margin: 6px 0; min-height: 16px; }
-  .hint { color: #777; font-size: 11px; margin-top: 6px; }
+  * { box-sizing: border-box; }
+  body {
+    font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    width: 360px; margin: 0; padding: 16px;
+    background: #0e0f11; color: #e8e8ea;
+  }
+  .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 650; font-size: 15px; letter-spacing: -0.01em; }
+  .brand .dot { width: 9px; height: 9px; border-radius: 50%; background: #3b82f6; box-shadow: 0 0 8px #3b82f6aa; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 500; padding: 4px 9px; border-radius: 999px;
+    background: #1a1b1e; border: 1px solid #2a2c30; color: #9aa0a6;
+  }
+  .pill .pd { width: 6px; height: 6px; border-radius: 50%; background: #555; }
+  .pill.on { color: #7ee2a8; border-color: #1f4030; background: #10201700; }
+  .pill.on .pd { background: #34d399; box-shadow: 0 0 6px #34d399cc; }
+
+  button {
+    font: inherit; cursor: pointer; border-radius: 9px;
+    border: 1px solid #2a2c30; background: #17181b; color: #e8e8ea;
+    transition: background .12s, border-color .12s, opacity .12s;
+  }
+  button:hover:not(:disabled) { background: #212327; border-color: #3a3d42; }
+  button:disabled { opacity: .4; cursor: default; }
+
+  #scan {
+    width: 100%; padding: 11px; font-weight: 600; font-size: 13.5px;
+    background: #3b82f6; border-color: #3b82f6; color: #fff; margin-bottom: 8px;
+  }
+  #scan:hover:not(:disabled) { background: #2f70da; border-color: #2f70da; }
+
+  .subrow { display: flex; justify-content: center; margin-bottom: 12px; }
+  #grab {
+    background: none; border: none; color: #8a9099; font-size: 12px; padding: 2px 6px;
+    text-decoration: underline; text-underline-offset: 2px;
+  }
+  #grab:hover:not(:disabled) { color: #b8bec6; background: none; }
+
+  .status { font-size: 12px; color: #8a9099; min-height: 17px; margin-bottom: 8px; display: flex; align-items: center; gap: 7px; }
+  .status .num { color: #34d399; font-weight: 600; }
+  .spin { width: 12px; height: 12px; border: 2px solid #33363b; border-top-color: #3b82f6; border-radius: 50%; animation: sp .7s linear infinite; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+
+  textarea {
+    width: 100%; height: 200px; resize: vertical;
+    background: #08090a; color: #86e0a4; border: 1px solid #26282c; border-radius: 9px;
+    font: 11.5px/1.55 ui-monospace, "SF Mono", Menlo, monospace; padding: 10px;
+  }
+  textarea::placeholder { color: #4a4e54; }
+
+  .foot { display: flex; gap: 8px; margin-top: 10px; }
+  .foot button { flex: 1; padding: 8px; font-size: 12.5px; }
+  .hint { font-size: 11px; color: #61666d; margin-top: 10px; line-height: 1.4; }
 </style>
 </head>
 <body>
-  <h1>guest-scout</h1>
-  <div class="row">
-    <select id="platform">
-      <option value="auto">auto-detect</option>
-      <option value="luma">luma</option>
-      <option value="partiful">partiful</option>
-    </select>
-    <button id="go">scroll + grab everyone</button>
+  <div class="head">
+    <div class="brand"><span class="dot"></span>guest-scout</div>
+    <span class="pill" id="pill"><span class="pd"></span><span id="pilltext">checking…</span></span>
   </div>
-  <div class="row">
-    <button id="grab">just grab what's loaded</button>
+
+  <button id="scan" disabled>scan guest list</button>
+  <div class="subrow"><button id="grab" disabled>grab without scrolling</button></div>
+
+  <div class="status" id="status"></div>
+  <textarea id="out" spellcheck="false" placeholder="open an event's guest list, then hit scan.
+the extension scrolls the whole list and pulls everyone's socials."></textarea>
+
+  <div class="foot">
+    <button id="copy" disabled>copy</button>
+    <button id="dl" disabled>download .txt</button>
   </div>
-  <div id="count"></div>
-  <textarea id="out" spellcheck="false" placeholder="open an event's guest list, then hit scroll + grab. it'll load the whole list for you."></textarea>
-  <div class="row" style="margin-top:8px">
-    <button id="copy">copy</button>
-    <button id="dl">download .txt</button>
-  </div>
-  <div class="hint" id="hint">keep this popup open while it scrolls.</div>
+  <div class="hint" id="hint"></div>
+
   <script src="popup.js"></script>
 </body>
 </html>

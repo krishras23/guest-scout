@@ -1,54 +1,84 @@
 const $ = (id) => document.getElementById(id);
 
-const HINTS = {
-  luma: "on luma, open the guest list first, then hit scroll + grab.",
-  partiful: "on partiful, let the page finish loading, open the guest list, then hit scroll + grab. if you get 0, refresh and try again.",
-  auto: "keep this popup open while it scrolls.",
-};
-
-function setHint(host, platform) {
-  let p = platform;
-  if (p === "auto") {
-    if (host && host.includes("partiful")) p = "partiful";
-    else if (host && host.includes("lu.ma")) p = "luma";
-  }
-  $("hint").textContent = HINTS[p] || HINTS.auto;
+// figure out which platform the current tab is, from its URL. no dropdown,
+// no guessing on the user's part.
+function detectPlatform(url) {
+  if (!url) return null;
+  try {
+    const h = new URL(url).hostname;
+    if (h === "luma.com" || h.endsWith(".luma.com") || h === "lu.ma" || h.endsWith(".lu.ma"))
+      return "luma";
+    if (h === "partiful.com" || h.endsWith(".partiful.com")) return "partiful";
+  } catch (e) {}
+  return null;
 }
 
-$("platform").addEventListener("change", () => setHint(null, $("platform").value));
+const HINTS = {
+  luma: "open the guest list, then hit scan. it loads the whole list for you.",
+  partiful: "let the page finish loading, open the guest list, then scan. if you get 0, refresh and try again.",
+};
 
-async function run(type, label) {
-  $("go").disabled = true;
-  $("grab").disabled = true;
-  $("count").textContent = type === "scroll_extract"
-    ? "scrolling the list… hang tight"
-    : "grabbing…";
+let currentPlatform = null;
+
+async function init() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  currentPlatform = detectPlatform(tab && tab.url);
+
+  const pill = $("pill");
+  if (currentPlatform) {
+    pill.classList.add("on");
+    $("pilltext").textContent = currentPlatform;
+    $("scan").disabled = false;
+    $("grab").disabled = false;
+    $("hint").textContent = HINTS[currentPlatform] || "";
+  } else {
+    pill.classList.remove("on");
+    $("pilltext").textContent = "not on an event page";
+    $("scan").disabled = true;
+    $("grab").disabled = true;
+    $("hint").textContent = "open a luma.com or partiful.com event, then reopen this.";
+  }
+}
+
+function setBusy(busy, text) {
+  $("scan").disabled = busy || !currentPlatform;
+  $("grab").disabled = busy || !currentPlatform;
+  $("status").innerHTML = busy
+    ? `<span class="spin"></span>${text || "working…"}`
+    : "";
+}
+
+function showResults(urls) {
+  $("out").value = urls.join("\n");
+  const has = urls.length > 0;
+  $("copy").disabled = !has;
+  $("dl").disabled = !has;
+  $("status").innerHTML = has
+    ? `<span class="num">${urls.length}</span> profiles found`
+    : "0 found — see the tip below";
+}
+
+async function run(type, busyText) {
+  setBusy(true, busyText);
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const res = await chrome.tabs.sendMessage(tab.id, { type });
-    const urls = (res && res.urls) || [];
-    $("out").value = urls.join("\n");
-    $("count").textContent = urls.length
-      ? urls.length + " profiles found"
-      : "0 found — see tip below";
-    setHint(res && res.host, $("platform").value);
+    setBusy(false);
+    showResults((res && res.urls) || []);
   } catch (e) {
-    $("out").value = "";
-    $("count").textContent = "";
+    setBusy(false);
+    $("status").textContent = "";
     $("hint").textContent =
-      "couldn't reach the page. make sure you're on a lu.ma or partiful event tab, refresh it once, and try again.";
-  } finally {
-    $("go").disabled = false;
-    $("grab").disabled = false;
+      "couldn't reach the page. refresh the event tab once, then reopen this popup.";
   }
 }
 
-$("go").addEventListener("click", () => run("scroll_extract"));
-$("grab").addEventListener("click", () => run("extract"));
+$("scan").addEventListener("click", () => run("scroll_extract", "scrolling the list…"));
+$("grab").addEventListener("click", () => run("extract", "grabbing…"));
 
 $("copy").addEventListener("click", () => {
   navigator.clipboard.writeText($("out").value);
-  $("count").textContent = "copied";
+  $("status").innerHTML = `<span class="num">copied</span>`;
 });
 
 $("dl").addEventListener("click", () => {
@@ -59,3 +89,5 @@ $("dl").addEventListener("click", () => {
   a.click();
   URL.revokeObjectURL(a.href);
 });
+
+init();

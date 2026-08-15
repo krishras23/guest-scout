@@ -1,12 +1,12 @@
 # guest-scout
 
-Pull everyone's socials off a [Luma](https://lu.ma) or [Partiful](https://partiful.com) guest list, so you can see who's actually going to be in the room before you show up.
+Pull everyone's socials off a [Luma](https://luma.com) or [Partiful](https://partiful.com) guest list, so you can see who's actually going to be in the room before you show up.
 
 No API keys, no scraping infra, no accounts. It's just a bit of JavaScript in your browser (plus a tiny Python script if you'd rather work from a saved HTML file).
 
 ## Chrome extension (recommended)
 
-The extension lives in [`extension/`](extension/) and works on both Luma and Partiful. There's a platform dropdown in the popup, though auto-detect handles it for you.
+The extension lives in [`extension/`](extension/) and works on both Luma and Partiful. It detects which site you're on automatically, so there's nothing to configure.
 
 Installing it takes about two minutes:
 
@@ -14,7 +14,7 @@ Installing it takes about two minutes:
 2. Open `chrome://extensions` and turn on **Developer mode** (top right).
 3. Click **Load unpacked** and select the `extension/` folder.
 4. Open any Luma or Partiful event and open the guest list.
-5. Click the extension icon and hit **scroll + grab everyone**. It scrolls the whole list for you, then copy or download the result.
+5. Click the extension icon and hit **scan guest list**. It scrolls the whole list for you, then copy or download the result.
 
 You don't have to scroll the list yourself. The extension drives it to the bottom until everything's loaded, then pulls out every X (twitter), Instagram, and LinkedIn profile and filters out the noise like nav links, post URLs, and share buttons. Nothing ever leaves your browser. No servers, no analytics, just about 150 lines of JavaScript you can read in one sitting.
 
